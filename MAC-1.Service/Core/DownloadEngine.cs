@@ -77,6 +77,21 @@ public class DownloadEngine : IDisposable
                 }
             }
 
+            // Attempt 3: Try with HttpWebRequest (uses WinINet/Windows TLS stack)
+            if (response == null)
+            {
+                Log("Trying HttpWebRequest (Windows TLS stack)...");
+                try
+                {
+                    response = await TryDownloadWebRequest(request, _cts.Token);
+                    Log("HttpWebRequest connection successful");
+                }
+                catch (Exception ex4)
+                {
+                    Log($"HttpWebRequest also failed: {ex4.Message} | Inner: {ex4.InnerException?.Message}");
+                }
+            }
+
             if (response == null)
             {
                 result.Error = "Failed to connect with any HTTP version";
@@ -316,6 +331,56 @@ public class DownloadEngine : IDisposable
         Log($"Sending {request.Method ?? "GET"} request to {request.FinalUrl ?? request.Url} (HTTP/{(useHttp2 ? "2" : "1.1")})");
 
         return await httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, ct);
+    }
+
+    private async Task<HttpResponseMessage> TryDownloadWebRequest(DownloadRequest request, CancellationToken ct)
+    {
+        var uri = new Uri(request.FinalUrl ?? request.Url);
+        var webRequest = (System.Net.HttpWebRequest)System.Net.WebRequest.Create(uri);
+        webRequest.Method = request.Method ?? "GET";
+        webRequest.ContentType = "application/octet-stream";
+        webRequest.Accept = "*/*";
+        webRequest.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+        webRequest.Timeout = (int)TimeSpan.FromMinutes(30).TotalMilliseconds;
+        webRequest.ReadWriteTimeout = (int)TimeSpan.FromMinutes(10).TotalMilliseconds;
+        webRequest.AllowAutoRedirect = true;
+        webRequest.MaximumAutomaticRedirections = 10;
+
+        // Add cookies
+        if (request.Cookies != null && request.Cookies.Count > 0)
+        {
+            var container = new CookieContainer();
+            foreach (var c in request.Cookies)
+                container.Add(uri, new Cookie(c.Name, c.Value, c.Domain, c.Path));
+            webRequest.CookieContainer = container;
+        }
+
+        // Add custom headers
+        if (request.Headers != null)
+        {
+            foreach (var header in request.Headers)
+            {
+                string lk = header.Key.ToLowerInvariant();
+                if (lk == "host" || lk == "content-length" || lk == "connection" || lk == "user-agent")
+                    continue;
+                try { webRequest.Headers.Add(header.Key, header.Value); } catch { }
+            }
+        }
+
+        // Range header for resume
+        if (request.ResumeFromBytes > 0)
+            webRequest.AddRange(request.ResumeFromBytes);
+
+        var webResponse = (System.Net.HttpWebResponse)await webRequest.GetResponseAsync();
+        var stream = webResponse.GetResponseStream();
+
+        // Convert to HttpResponseMessage
+        var httpResponse = new HttpResponseMessage(webResponse.StatusCode)
+        {
+            Content = new StreamContent(stream!)
+        };
+        httpResponse.Headers.Add("X-Original-Uri", uri.ToString());
+        return httpResponse;
     }
 
     public void Cancel()
