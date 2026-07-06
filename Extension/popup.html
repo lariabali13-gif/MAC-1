@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { width: 300px; padding: 16px; font-family: Arial, sans-serif; background: #1a1a2e; color: white; }
+    h2 { margin: 0 0 12px; font-size: 16px; color: #0077ff; }
+    .status { padding: 8px 12px; border-radius: 6px; margin-bottom: 12px; font-size: 13px; }
+    .connected { background: #1b4332; color: #52b788; }
+    .disconnected { background: #3d0000; color: #ff6b6b; }
+    .unknown { background: #333; color: #aaa; }
+    button { width: 100%; padding: 10px; margin-bottom: 8px; border: none; border-radius: 6px; 
+             font-size: 13px; cursor: pointer; font-weight: bold; }
+    .btn-primary { background: #0077ff; color: white; }
+    .btn-primary:hover { background: #0055cc; }
+    .btn-test { background: #4CAF50; color: white; }
+    .btn-test:hover { background: #45a049; }
+    #result { margin-top: 8px; padding: 8px; background: #16213e; border-radius: 4px; 
+              font-size: 11px; white-space: pre-wrap; max-height: 150px; overflow-y: auto; display: none; }
+    .footer { margin-top: 12px; text-align: center; font-size: 11px; color: #666; }
+  </style>
+</head>
+<body>
+  <h2>MAC-1 Download Manager</h2>
+  
+  <div id="status" class="status unknown">Checking connection...</div>
+  
+  <button class="btn-primary" id="checkBtn">Check Connection</button>
+  <button class="btn-test" id="sendTestBtn">Send Test Data</button>
+  
+  <div id="result"></div>
+  
+  <div class="footer">v0.1.0 - Basic Communication Test</div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

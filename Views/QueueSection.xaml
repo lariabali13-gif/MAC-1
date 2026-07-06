@@ -1,0 +1,162 @@
+<UserControl x:Class="MAC_1.Views.QueueSection"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:fa="http://schemas.fontawesome.io/icons/"
+             xmlns:local="clr-namespace:MAC_1.Converters"
+             mc:Ignorable="d"
+             d:DesignHeight="800" d:DesignWidth="900">
+    <UserControl.Resources>
+        <Style x:Key="SlimProgress" TargetType="ProgressBar">
+            <Setter Property="Height" Value="4"/>
+            <Setter Property="Background" Value="#E5E7EB"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ProgressBar">
+                        <Grid>
+                            <Border Background="{TemplateBinding Background}" CornerRadius="2"/>
+                            <Border x:Name="PART_Track" CornerRadius="2"/>
+                            <Border x:Name="PART_Indicator" HorizontalAlignment="Left" CornerRadius="2">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                        <GradientStop Color="#3B82F6" Offset="0"/>
+                                        <GradientStop Color="#60A5FA" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                            </Border>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+    <Border Background="White">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Margin="28,20,28,24">
+
+                <!-- HEADER -->
+                <Grid Margin="0,0,0,20">
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Queue" FontSize="22" FontWeight="Bold" Foreground="#0F172A"/>
+                        <TextBlock Text="Manage and organize your queued downloads" FontSize="12" Foreground="#94A3B8" Margin="0,2,0,0"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- STATS ROW -->
+                <Grid Margin="0,0,0,18">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="12"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="12"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="12"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <!-- Total Items -->
+                    <Border Background="#FAFBFC" CornerRadius="10" Padding="14,10">
+                        <StackPanel>
+                            <TextBlock Text="Total Items" FontSize="11" Foreground="#64748B"/>
+                            <TextBlock Text="{Binding QueuedCount}" FontSize="18" FontWeight="Bold" Foreground="#0F172A"/>
+                        </StackPanel>
+                    </Border>
+                    <!-- Waiting -->
+                    <Border Grid.Column="2" Background="#FAFBFC" CornerRadius="10" Padding="14,10">
+                        <StackPanel>
+                            <TextBlock Text="Waiting" FontSize="11" Foreground="#64748B"/>
+                            <TextBlock Text="{Binding WaitingCount}" FontSize="18" FontWeight="Bold" Foreground="#F59E0B"/>
+                        </StackPanel>
+                    </Border>
+                    <!-- Active -->
+                    <Border Grid.Column="4" Background="#FAFBFC" CornerRadius="10" Padding="14,10">
+                        <StackPanel>
+                            <TextBlock Text="Active" FontSize="11" Foreground="#64748B"/>
+                            <TextBlock Text="{Binding ActiveCount}" FontSize="18" FontWeight="Bold" Foreground="#3B82F6"/>
+                        </StackPanel>
+                    </Border>
+                    <!-- ETA -->
+                    <Border Grid.Column="6" Background="#FAFBFC" CornerRadius="10" Padding="14,10">
+                        <StackPanel>
+                            <TextBlock Text="Avg Speed" FontSize="11" Foreground="#64748B"/>
+                            <TextBlock Text="{Binding AvgSpeedDisplay}" FontSize="18" FontWeight="Bold" Foreground="#22C55E"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <!-- QUEUE LIST -->
+                <Border Background="#FAFBFC" CornerRadius="12" Padding="4">
+                    <ItemsControl ItemsSource="{Binding QueuedDownloads}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" Padding="14,12" Margin="0,0,0,8">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Icon -->
+                                        <Border Width="40" Height="40" CornerRadius="10" Background="#EFF6FF" Margin="0,0,12,0" VerticalAlignment="Center">
+                                            <fa:ImageAwesome Icon="File" Width="16" Foreground="#3B82F6" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                        </Border>
+
+                                        <!-- Info -->
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Filename}" FontSize="13" FontWeight="SemiBold" Foreground="#0F172A" TextTrimming="CharacterEllipsis"/>
+                                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                                <TextBlock Text="{Binding SizeDisplay}" FontSize="11" Foreground="#64748B" Margin="0,0,10,0"/>
+                                                <TextBlock Text="{Binding StateText}" FontSize="11" FontWeight="SemiBold">
+                                                    <TextBlock.Foreground>
+                                                        <MultiBinding Converter="{x:Static local:StateToColorConverter.Instance}">
+                                                            <Binding Path="State"/>
+                                                        </MultiBinding>
+                                                    </TextBlock.Foreground>
+                                                </TextBlock>
+                                            </StackPanel>
+                                            <!-- Progress Bar -->
+                                            <Grid Margin="0,6,0,0" Height="4">
+                                                <Border Background="#E5E7EB" CornerRadius="2"/>
+                                                <Border Background="#3B82F6" CornerRadius="2" HorizontalAlignment="Left" Width="{Binding Progress, Converter={x:Static local:ProgressToWidthConverter.Instance}}"/>
+                                            </Grid>
+                                            <Grid Margin="0,4,0,0">
+                                                <TextBlock Text="{Binding ProgressDisplay}" FontSize="10" Foreground="#64748B" HorizontalAlignment="Left"/>
+                                                <TextBlock Text="{Binding Speed}" FontSize="10" Foreground="#64748B" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="{Binding TimeLeft}" FontSize="10" Foreground="#64748B" HorizontalAlignment="Right"/>
+                                            </Grid>
+                                        </StackPanel>
+
+                                        <!-- Actions -->
+                                        <StackPanel Grid.Column="2" VerticalAlignment="Center" Orientation="Horizontal">
+                                            <Border Width="32" Height="32" CornerRadius="8" Background="#EFF6FF" Cursor="Hand" Margin="0,0,6,0" MouseLeftButtonDown="QueuePauseResume_Click" Tag="{Binding}">
+                                                <fa:ImageAwesome Icon="Pause" Width="10" Foreground="#3B82F6" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                            </Border>
+                                            <Border Width="32" Height="32" CornerRadius="8" Background="#FEF2F2" Cursor="Hand" MouseLeftButtonDown="QueueRemove_Click" Tag="{Binding}">
+                                                <fa:ImageAwesome Icon="Times" Width="10" Foreground="#EF4444" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                            </Border>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Border>
+
+                <!-- Empty State -->
+                <Border Background="#FAFBFC" CornerRadius="12" Padding="40,30" HorizontalAlignment="Center" Margin="0,10,0,0"
+                        Visibility="{Binding QueuedCount, Converter={x:Static local:ZeroToVisibleConverter.Instance}}">
+                    <StackPanel HorizontalAlignment="Center">
+                        <Border Width="50" Height="50" CornerRadius="25" Background="#EFF6FF" HorizontalAlignment="Center" Margin="0,0,0,10">
+                            <fa:ImageAwesome Icon="ListOl" Width="20" Foreground="#3B82F6" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="Queue is Empty" FontSize="14" FontWeight="SemiBold" Foreground="#0F172A" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Downloaded files will appear here" FontSize="11" Foreground="#94A3B8" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+    </Border>
+</UserControl>

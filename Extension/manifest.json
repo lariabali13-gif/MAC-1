@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "MAC-1 Download Manager",
+  "version": "0.1.0",
+  "description": "Captures download data and sends to MAC-1 service",
+  "permissions": ["downloads", "cookies", "webRequest", "storage", "tabs"],
+  "host_permissions": ["<all_urls>", "http://127.0.0.1:57575/*", "http://localhost:57575/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "MAC-1"
+  }
+}
