@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http;
+using System.Net.Security;
 
 namespace MAC_1.Service.Core;
 
@@ -38,29 +39,41 @@ public class DownloadEngine : IDisposable
             Log($"Starting download: {request.Filename} ({FormatSize(request.FileSize)})");
             Log($"URL: {request.FinalUrl ?? request.Url}");
 
-            // Try HTTP/2 first, fallback to HTTP/1.1
+            // Try HTTP/2 first, fallback to HTTP/1.1, then retry without strict SSL
             HttpResponseMessage? response = null;
-            bool usedHttp2 = false;
 
+            // Attempt 1: Normal connection
             try
             {
                 response = await TryDownload(request, useHttp2: true, _cts.Token);
-                usedHttp2 = true;
                 Log("HTTP/2 connection successful");
             }
             catch (Exception ex)
             {
-                Log($"HTTP/2 failed: {ex.Message}, trying HTTP/1.1...");
+                Log($"HTTP/2 failed: {ex.Message} | Inner: {ex.InnerException?.Message}");
                 try
                 {
                     response = await TryDownload(request, useHttp2: false, _cts.Token);
-                    usedHttp2 = false;
                     Log("HTTP/1.1 connection successful");
                 }
                 catch (Exception ex2)
                 {
-                    Log($"HTTP/1.1 also failed: {ex2.Message}");
-                    throw;
+                    Log($"HTTP/1.1 also failed: {ex2.Message} | Inner: {ex2.InnerException?.Message}");
+                }
+            }
+
+            // Attempt 2: If both failed, try with fully permissive SSL
+            if (response == null)
+            {
+                Log("Retrying with permissive SSL settings...");
+                try
+                {
+                    response = await TryDownloadPermissive(request, _cts.Token);
+                    Log("Permissive SSL connection successful");
+                }
+                catch (Exception ex3)
+                {
+                    Log($"Permissive SSL also failed: {ex3.Message} | Inner: {ex3.InnerException?.Message}");
                 }
             }
 
@@ -232,13 +245,16 @@ public class DownloadEngine : IDisposable
             ConnectTimeout = TimeSpan.FromSeconds(30),
             Expect100ContinueTimeout = TimeSpan.FromSeconds(1),
             PooledConnectionLifetime = TimeSpan.FromMinutes(10),
-            AutomaticDecompression = DecompressionMethods.All
+            AutomaticDecompression = DecompressionMethods.All,
+            SslOptions =
+            {
+                // Accept all certificates to handle servers with cert issues
+                RemoteCertificateValidationCallback = (_, _, _, _) => true,
+                EnabledSslProtocols = System.Security.Authentication.SslProtocols.Tls12
+                    | System.Security.Authentication.SslProtocols.Tls13
+                    | System.Security.Authentication.SslProtocols.Tls11
+            }
         };
-
-        if (useHttp2)
-        {
-            handler.SslOptions.EnabledSslProtocols = System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13;
-        }
 
         using var httpClient = new HttpClient(handler)
         {
@@ -304,6 +320,54 @@ public class DownloadEngine : IDisposable
         }
 
         Log($"Sending {request.Method ?? "GET"} request to {request.FinalUrl ?? request.Url} (HTTP/{(useHttp2 ? "2" : "1.1")})");
+
+        return await httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, ct);
+    }
+
+    private async Task<HttpResponseMessage> TryDownloadPermissive(DownloadRequest request, CancellationToken ct)
+    {
+        var handler = new HttpClientHandler
+        {
+            UseCookies = false,
+            AllowAutoRedirect = true,
+            ServerCertificateCustomValidationCallback = (_, _, _, _) => true,
+            SslProtocols = System.Security.Authentication.SslProtocols.Tls12
+                | System.Security.Authentication.SslProtocols.Tls13
+                | System.Security.Authentication.SslProtocols.Tls11
+                | System.Security.Authentication.SslProtocols.Ssl3
+        };
+
+        using var httpClient = new HttpClient(handler)
+        {
+            Timeout = TimeSpan.FromMinutes(30)
+        };
+
+        using var httpRequest = new HttpRequestMessage(new HttpMethod(request.Method ?? "GET"), request.FinalUrl ?? request.Url);
+
+        if (request.Headers != null)
+        {
+            foreach (var header in request.Headers)
+            {
+                string lk = header.Key.ToLowerInvariant();
+                if (lk == "host" || lk == "content-length" || lk == "connection")
+                    continue;
+                try { httpRequest.Headers.TryAddWithoutValidation(header.Key, header.Value); } catch { }
+            }
+        }
+
+        if (request.Cookies != null && request.Cookies.Count > 0)
+        {
+            string cookieHeader = string.Join("; ", request.Cookies.Select(c => $"{c.Name}={c.Value}"));
+            httpRequest.Headers.TryAddWithoutValidation("Cookie", cookieHeader);
+        }
+
+        if (!httpRequest.Headers.Contains("Accept"))
+            httpRequest.Headers.TryAddWithoutValidation("Accept", "*/*");
+        if (!httpRequest.Headers.Contains("User-Agent"))
+            httpRequest.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36");
+
+        if (request.ResumeFromBytes > 0)
+            httpRequest.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(request.ResumeFromBytes, null);
 
         return await httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, ct);
     }

@@ -3,6 +3,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using MAC_1.Models;
 using MAC_1.Services;
@@ -161,6 +162,7 @@ namespace MAC_1.Views
             State1Panel.Visibility = Visibility.Collapsed;
             State2Panel.Visibility = Visibility.Visible;
             State3Panel.Visibility = Visibility.Collapsed;
+            AnimateHeight(Height, 520);
         }
 
         private void ShowState3()
@@ -168,6 +170,7 @@ namespace MAC_1.Views
             State1Panel.Visibility = Visibility.Collapsed;
             State2Panel.Visibility = Visibility.Collapsed;
             State3Panel.Visibility = Visibility.Visible;
+            AnimateHeight(Height, 500);
         }
 
         private async void StartDownload_Click(object sender, RoutedEventArgs e)
@@ -414,7 +417,41 @@ namespace MAC_1.Views
             this.Close();
         }
 
-        private void HideDetails_Click(object sender, RoutedEventArgs e) { }
+        private bool _detailsVisible = true;
+
+        private void HideDetails_Click(object sender, RoutedEventArgs e)
+        {
+            _detailsVisible = !_detailsVisible;
+
+            double fromHeight = Height;
+            double toHeight;
+
+            if (_detailsVisible)
+            {
+                // Show details
+                ConnectionSegmentsSection.Visibility = Visibility.Visible;
+                ChunkDetailsSection.Visibility = Visibility.Visible;
+                HideDetailsBtn.Content = "Hide Details";
+                toHeight = 520; // Full height with details
+            }
+            else
+            {
+                // Hide details
+                ConnectionSegmentsSection.Visibility = Visibility.Collapsed;
+                ChunkDetailsSection.Visibility = Visibility.Collapsed;
+                HideDetailsBtn.Content = "Show Details";
+                toHeight = 340; // Compact height without details
+            }
+
+            AnimateHeight(fromHeight, toHeight);
+        }
+
+        private void AnimateHeight(double from, double to)
+        {
+            var anim = new DoubleAnimation(from, to, TimeSpan.FromMilliseconds(200));
+            anim.EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut };
+            BeginAnimation(HeightProperty, anim);
+        }
         private void Stop_Click(object sender, RoutedEventArgs e) => Cancel_Click(sender, e);
 
         private void OpenFile_Click(object sender, RoutedEventArgs e)
